@@ -114,6 +114,28 @@ function toggleAudioAlarm() {
 // ==============================================================================
 // 4. AUTHENTICATION & ROLE SWITCHER
 // ==============================================================================
+function switchAuthMode(mode) {
+  state.authMode = mode;
+  const isSignIn = mode === 'signin';
+  const signinBtn = document.getElementById('btn-mode-signin');
+  const signupBtn = document.getElementById('btn-mode-signup');
+  if (signinBtn) signinBtn.classList.toggle('active', isSignIn);
+  if (signupBtn) signupBtn.classList.toggle('active', !isSignIn);
+
+  const signinSec = document.getElementById('signin-section');
+  const signupSec = document.getElementById('signup-section');
+  if (signinSec) signinSec.style.display = isSignIn ? 'block' : 'none';
+  if (signupSec) signupSec.style.display = isSignIn ? 'none' : 'block';
+
+  // Clear messages
+  const loginErr = document.getElementById('login-error-msg');
+  if (loginErr) loginErr.style.display = 'none';
+  const signupErr = document.getElementById('signup-error-msg');
+  if (signupErr) signupErr.style.display = 'none';
+  const signupSuccess = document.getElementById('signup-success-msg');
+  if (signupSuccess) signupSuccess.style.display = 'none';
+}
+
 function switchLoginRole(role) {
   state.loginRole = role;
   document.getElementById('tab-admin').classList.toggle('active', role === 'admin');
@@ -223,6 +245,93 @@ async function handleLoginSubmit(e) {
   } finally {
     submitBtn.disabled = false;
     submitBtn.querySelector('.btn-text').innerText = 'AUTHENTICATE & ENTER COMMAND CENTER';
+  }
+}
+
+async function handleSignupSubmit(e) {
+  e.preventDefault();
+  const name = document.getElementById('signup-name').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const role = document.getElementById('signup-role').value;
+  const badge = document.getElementById('signup-badge').value.trim();
+  const phone = document.getElementById('signup-phone').value.trim();
+  const password = document.getElementById('signup-password').value.trim();
+
+  const errorEl = document.getElementById('signup-error-msg');
+  const successEl = document.getElementById('signup-success-msg');
+  const submitBtn = document.getElementById('btn-signup-submit');
+
+  errorEl.style.display = 'none';
+  successEl.style.display = 'none';
+  submitBtn.disabled = true;
+  submitBtn.querySelector('.btn-text').innerText = 'CREATING OPERATOR PROFILE...';
+
+  try {
+    const newUser = {
+      email: email,
+      name: name,
+      role: role,
+      badge: badge || (role === 'admin' ? 'CHIEF-01' : 'BADGE-1001'),
+      title: role === 'admin' ? 'COMMAND ADMIN' : 'PATROL OFFICER',
+      phone: phone
+    };
+
+    if (supabaseClient) {
+      // 1. Supabase Auth registration
+      try {
+        await supabaseClient.auth.signUp({
+          email: email,
+          password: password,
+          options: {
+            data: { full_name: name, role: role, badge_number: badge }
+          }
+        });
+      } catch (authErr) {
+        console.warn("Supabase Auth sign up note:", authErr.message);
+      }
+
+      // 2. Insert into profiles table
+      try {
+        await supabaseClient.from('profiles').insert([{
+          email: email,
+          full_name: name,
+          role: role,
+          badge_number: badge,
+          phone: phone,
+          status: 'ACTIVE'
+        }]);
+      } catch (profErr) {
+        console.warn("Supabase profiles insert note:", profErr.message);
+      }
+    }
+
+    // Add to officers roster if officer
+    if (role === 'police') {
+      state.officers.unshift({
+        id: 'off-' + Date.now(),
+        name: name,
+        badge: badge,
+        status: 'ON_DUTY',
+        unit: `Patrol Unit (${badge})`,
+        phone: phone || '+1 (555) 911-0000'
+      });
+      renderOfficersList();
+    }
+
+    successEl.innerText = `OPERATOR ACCOUNT CREATED FOR ${name.toUpperCase()}! ENTERING COMMAND CENTER...`;
+    successEl.style.display = 'block';
+
+    setTimeout(() => {
+      localStorage.setItem('smartpolice_user', JSON.stringify(newUser));
+      state.currentUser = newUser;
+      initDashboard();
+    }, 1200);
+
+  } catch (err) {
+    errorEl.innerText = err.message || 'Registration failed. Please check inputs.';
+    errorEl.style.display = 'block';
+    submitBtn.disabled = false;
+    submitBtn.querySelector('.btn-text').innerText = 'CREATE & ACTIVATE OPERATOR ACCOUNT';
   }
 }
 
@@ -432,10 +541,6 @@ function subscribeToRealtimeAlerts() {
   if (!supabaseClient) return;
 
   try {
-    const statusPill = document.getElementById('supabase-status-pill');
-    const connDot = document.getElementById('conn-dot');
-    const connText = document.getElementById('conn-text');
-
     realtimeChannel = supabaseClient
       .channel('public:alerts')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'alerts' }, payload => {
@@ -444,13 +549,6 @@ function subscribeToRealtimeAlerts() {
       })
       .subscribe((status) => {
         console.log("Supabase Realtime subscription status:", status);
-        if (status === 'SUBSCRIBED') {
-          connDot.className = 'status-indicator-green';
-          connText.innerText = 'SUPABASE REALTIME: ARMED & LIVE';
-        } else if (status === 'CLOSED') {
-          connDot.className = 'status-indicator-amber';
-          connText.innerText = 'SUPABASE REALTIME: RECONNECTING...';
-        }
       });
   } catch (e) {
     console.error("Error setting up Realtime subscription:", e);

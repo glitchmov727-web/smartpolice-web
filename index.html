@@ -41,45 +41,105 @@
         </div>
       </div>
 
-      <div class="auth-tabs">
-        <button id="tab-admin" class="tab-btn active" onclick="switchLoginRole('admin')">ADMIN COMMAND</button>
-        <button id="tab-police" class="tab-btn" onclick="switchLoginRole('police')">PATROL OFFICER</button>
+      <!-- AUTH MODE SWITCHER (SIGN IN VS CREATE ACCOUNT) -->
+      <div class="auth-mode-toggle">
+        <button type="button" id="btn-mode-signin" class="mode-btn active" onclick="switchAuthMode('signin')">SIGN IN</button>
+        <button type="button" id="btn-mode-signup" class="mode-btn" onclick="switchAuthMode('signup')">CREATE ACCOUNT</button>
       </div>
 
-      <form id="login-form" class="auth-form" onsubmit="handleLoginSubmit(event)">
-        <div class="form-group">
-          <label for="login-email">OPERATOR / BADGE ID OR EMAIL</label>
-          <div class="input-wrapper">
-            <input type="text" id="login-email" required placeholder="admin@smartpolice.gov" value="admin@smartpolice.gov">
-            <span class="input-badge" id="role-badge-tag">ADMIN</span>
+      <!-- SIGN IN SECTION -->
+      <div id="signin-section">
+        <div class="auth-tabs">
+          <button id="tab-admin" class="tab-btn active" onclick="switchLoginRole('admin')">ADMIN COMMAND</button>
+          <button id="tab-police" class="tab-btn" onclick="switchLoginRole('police')">PATROL OFFICER</button>
+        </div>
+
+        <form id="login-form" class="auth-form" onsubmit="handleLoginSubmit(event)">
+          <div class="form-group">
+            <label for="login-email">OPERATOR / BADGE ID OR EMAIL</label>
+            <div class="input-wrapper">
+              <input type="text" id="login-email" required placeholder="admin@smartpolice.gov" value="admin@smartpolice.gov">
+              <span class="input-badge" id="role-badge-tag">ADMIN</span>
+            </div>
           </div>
-        </div>
 
-        <div class="form-group">
-          <label for="login-password">SECURE ACCESS PIN / PASSWORD</label>
-          <input type="password" id="login-password" required placeholder="••••••••" value="admin123">
-        </div>
-
-        <div class="quick-credentials">
-          <p class="quick-label">⚡ ONE-CLICK DEMO ACCESS</p>
-          <div class="quick-chips">
-            <button type="button" class="chip active-chip" onclick="applyDemoCredentials('admin')">Admin Chief</button>
-            <button type="button" class="chip" onclick="applyDemoCredentials('police')">Officer Shane</button>
-            <button type="button" class="chip" onclick="applyDemoCredentials('dispatch')">HQ Dispatcher</button>
+          <div class="form-group">
+            <label for="login-password">SECURE ACCESS PIN / PASSWORD</label>
+            <input type="password" id="login-password" required placeholder="••••••••" value="admin123">
           </div>
-        </div>
 
-        <div id="login-error-msg" class="error-banner" style="display: none;"></div>
+          <div class="quick-credentials">
+            <p class="quick-label">⚡ ONE-CLICK DEMO ACCESS</p>
+            <div class="quick-chips">
+              <button type="button" class="chip active-chip" onclick="applyDemoCredentials('admin')">Admin Chief</button>
+              <button type="button" class="chip" onclick="applyDemoCredentials('police')">Officer Shane</button>
+              <button type="button" class="chip" onclick="applyDemoCredentials('dispatch')">HQ Dispatcher</button>
+            </div>
+          </div>
 
-        <button type="submit" id="btn-login-submit" class="btn-primary btn-block">
-          <span class="btn-text">AUTHENTICATE & ENTER COMMAND CENTER</span>
-          <span class="btn-glare"></span>
-        </button>
+          <div id="login-error-msg" class="error-banner" style="display: none;"></div>
 
-        <div class="auth-footer">
-          <span>SECURE END-TO-END ENCRYPTED // SUPABASE REALTIME V2</span>
-        </div>
-      </form>
+          <button type="submit" id="btn-login-submit" class="btn-primary btn-block">
+            <span class="btn-text">AUTHENTICATE & ENTER COMMAND CENTER</span>
+            <span class="btn-glare"></span>
+          </button>
+        </form>
+      </div>
+
+      <!-- CREATE ACCOUNT SECTION -->
+      <div id="signup-section" style="display: none;">
+        <form id="signup-form" class="auth-form" onsubmit="handleSignupSubmit(event)">
+          <div class="form-group">
+            <label for="signup-name">OPERATOR FULL NAME</label>
+            <input type="text" id="signup-name" required placeholder="Officer Marcus Vance">
+          </div>
+
+          <div class="form-group">
+            <label for="signup-email">OFFICIAL EMAIL ADDRESS</label>
+            <input type="email" id="signup-email" required placeholder="marcus.vance@smartpolice.gov">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="signup-role">ASSIGNED ROLE</label>
+              <select id="signup-role">
+                <option value="police">Patrol Officer / Unit</option>
+                <option value="admin">Command Administrator</option>
+              </select>
+            </div>
+            <div class="form-group flex-1">
+              <label for="signup-badge">BADGE / UNIT NUMBER</label>
+              <input type="text" id="signup-badge" required placeholder="BADGE-7721">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="signup-phone">OFFICER CONTACT PHONE</label>
+            <input type="text" id="signup-phone" placeholder="+1 (555) 911-7721">
+          </div>
+
+          <div class="form-group">
+            <label for="signup-password">SECURE ACCESS PIN / PASSWORD</label>
+            <input type="password" id="signup-password" required placeholder="••••••••">
+          </div>
+
+          <div id="signup-error-msg" class="error-banner" style="display: none;"></div>
+          <div id="signup-success-msg" class="success-banner" style="display: none;"></div>
+
+          <button type="submit" id="btn-signup-submit" class="btn-primary btn-block">
+            <span class="btn-text">CREATE & ACTIVATE OPERATOR ACCOUNT</span>
+            <span class="btn-glare"></span>
+          </button>
+
+          <div class="auth-toggle-link">
+            <span>Already registered? <a href="#" onclick="switchAuthMode('signin'); return false;">Sign In to terminal</a></span>
+          </div>
+        </form>
+      </div>
+
+      <div class="auth-footer">
+        <span>SECURE END-TO-END ENCRYPTED // SMARTPOLICE REALTIME DISPATCH</span>
+      </div>
     </div>
   </div>
 
@@ -93,11 +153,6 @@
           <span class="status-pulse-dot"></span>
           <span class="logo-title">SMARTPOLICE</span>
           <span class="logo-version">v3.4 DISPATCH</span>
-        </div>
-        
-        <div class="connection-status" id="supabase-status-pill">
-          <span class="status-indicator-green" id="conn-dot"></span>
-          <span id="conn-text">SUPABASE REALTIME: CONNECTED</span>
         </div>
       </div>
 
