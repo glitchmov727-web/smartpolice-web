@@ -57,7 +57,7 @@ function playEmergencySirenSound() {
   try {
     const AudioContext = window.AudioContext || window.webkitAudioContext;
     if (!AudioContext) return;
-    
+
     if (!audioCtx) {
       audioCtx = new AudioContext();
     }
@@ -118,10 +118,10 @@ function switchLoginRole(role) {
   state.loginRole = role;
   document.getElementById('tab-admin').classList.toggle('active', role === 'admin');
   document.getElementById('tab-police').classList.toggle('active', role === 'police');
-  
+
   const roleTag = document.getElementById('role-badge-tag');
   const emailInput = document.getElementById('login-email');
-  
+
   if (role === 'admin') {
     roleTag.innerText = 'ADMIN';
     emailInput.placeholder = 'admin@smartpolice.gov';
@@ -140,7 +140,7 @@ function switchLoginRole(role) {
 function applyDemoCredentials(type) {
   const emailInput = document.getElementById('login-email');
   const passInput = document.getElementById('login-password');
-  
+
   // Highlight clicked chip
   document.querySelectorAll('.quick-chips .chip').forEach(c => c.classList.remove('active-chip'));
   event.target.classList.add('active-chip');
@@ -275,8 +275,50 @@ function initDashboard() {
 }
 
 // ==============================================================================
-// 6. TACTICAL LEAFLET MAP
+// 6. GOOGLE MAPS TACTICAL RADAR
 // ==============================================================================
+const MAPS_API_KEY = "cb1_4v93_1_63dddd07f7af16db73c9e377";
+
+const googleTileLayers = {
+  roadmap: L.tileLayer(`https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}&key=${MAPS_API_KEY}`, {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google Maps'
+  }),
+  satellite: L.tileLayer(`https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}&key=${MAPS_API_KEY}`, {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google Maps Satellite'
+  }),
+  traffic: L.tileLayer(`https://{s}.google.com/vt/lyrs=m,traffic&x={x}&y={y}&z={z}&key=${MAPS_API_KEY}`, {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google Maps Traffic'
+  }),
+  terrain: L.tileLayer(`https://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}&key=${MAPS_API_KEY}`, {
+    maxZoom: 20,
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    attribution: '&copy; Google Maps Terrain'
+  })
+};
+
+function setGoogleMapType(type) {
+  if (!state.map || !googleTileLayers[type]) return;
+
+  Object.values(googleTileLayers).forEach(layer => {
+    if (state.map.hasLayer(layer)) {
+      state.map.removeLayer(layer);
+    }
+  });
+
+  googleTileLayers[type].addTo(state.map);
+  state.currentMapType = type;
+
+  document.querySelectorAll('.map-type-btn').forEach(btn => {
+    btn.classList.toggle('active-map-btn', btn.dataset.mapType === type);
+  });
+}
+
 function initLeafletMap() {
   if (state.map) return;
 
@@ -286,11 +328,8 @@ function initLeafletMap() {
     attributionControl: false
   }).setView(defaultCoords, 13);
 
-  // High-contrast tactical dark map tiles
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19,
-    subdomains: 'abcd',
-  }).addTo(state.map);
+  // Set Google Maps as active map layer
+  googleTileLayers.roadmap.addTo(state.map);
 
   L.control.zoom({ position: 'topright' }).addTo(state.map);
 }
@@ -351,7 +390,7 @@ function updateMapMarkers() {
 // ==============================================================================
 async function fetchAlerts() {
   const container = document.getElementById('alerts-list-container');
-  
+
   if (!supabaseClient) {
     // If Supabase library is unreachable, use local sample data
     state.alerts = getSampleAlerts();
@@ -424,7 +463,7 @@ function handleRealtimeEvent(payload) {
   if (eventType === 'INSERT') {
     // Incoming alert from mobile app or simulator!
     state.alerts.unshift(newRecord);
-    
+
     // Play synthesizer alarm
     playEmergencySirenSound();
 
@@ -534,7 +573,7 @@ function selectAlert(alertId, flyToMap = true) {
   // Fly Map to location
   if (flyToMap && state.map && alert.latitude && alert.longitude) {
     state.map.flyTo([alert.latitude, alert.longitude], 15, { animate: true, duration: 1 });
-    document.getElementById('selected-coords-pill').innerText = 
+    document.getElementById('selected-coords-pill').innerText =
       `COORDS: ${alert.latitude.toFixed(4)}° N, ${alert.longitude.toFixed(4)}° W`;
   }
 
@@ -548,17 +587,22 @@ function selectAlert(alertId, flyToMap = true) {
   document.getElementById('hud-note').innerText = alert.note || 'Citizen initiated high-priority SOS alert.';
   document.getElementById('hud-caller').innerText = alert.citizen_name || 'Anonymous';
   document.getElementById('hud-phone').innerText = alert.citizen_phone || 'N/A';
-  
+
   const statusEl = document.getElementById('hud-status');
   statusEl.innerText = alert.status;
   statusEl.className = `status-tag status-${alert.status}`;
 
   // Action buttons
+  const googleMapsUrl = (alert.latitude && alert.longitude)
+    ? `https://www.google.com/maps/search/?api=1&query=${alert.latitude},${alert.longitude}&key=${MAPS_API_KEY}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(alert.place_text || 'Emergency Location')}&key=${MAPS_API_KEY}`;
+
   const actionsContainer = document.getElementById('hud-actions-container');
   actionsContainer.innerHTML = `
     <button class="btn-dispatch" onclick="updateAlertStatus('${alert.id}', 'DISPATCHED')">DISPATCH PATROL</button>
     <button class="btn-onscene" onclick="updateAlertStatus('${alert.id}', 'ON_SCENE')">MARK ON SCENE</button>
     <button class="btn-resolve" onclick="updateAlertStatus('${alert.id}', 'RESOLVED')">RESOLVE INCIDENT</button>
+    <a href="${googleMapsUrl}" target="_blank" rel="noopener" class="btn-google-maps">📍 GOOGLE MAPS</a>
     <button class="btn-secondary btn-sm" onclick="closeIncidentHud()">CLOSE HUD</button>
   `;
 }

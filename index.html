@@ -231,12 +231,14 @@
             <div class="map-controls-bar glassmorphism">
               <div class="map-title-bar">
                 <span class="radar-dot"></span>
-                <span class="map-heading">METRO TACTICAL GPS RADAR</span>
+                <span class="map-heading">GOOGLE MAPS // TACTICAL RADAR</span>
                 <span class="active-coords" id="selected-coords-pill">COORDS: 37.7749° N, 122.4194° W</span>
               </div>
               <div class="map-btn-group">
-                <button class="btn-micro" onclick="resetMapView()">CENTER CITY</button>
-                <button class="btn-micro" onclick="toggleHeatmapLayer()">RADAR SWEEP</button>
+                <button class="btn-micro map-type-btn active-map-btn" data-map-type="roadmap" onclick="setGoogleMapType('roadmap')">🗺️ Roads</button>
+                <button class="btn-micro map-type-btn" data-map-type="satellite" onclick="setGoogleMapType('satellite')">🛰️ Satellite</button>
+                <button class="btn-micro map-type-btn" data-map-type="traffic" onclick="setGoogleMapType('traffic')">🚦 Traffic</button>
+                <button class="btn-micro" onclick="resetMapView()">CENTER</button>
               </div>
             </div>
 
