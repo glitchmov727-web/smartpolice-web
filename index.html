@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SMART POLICE 3 // Real-Time Emergency Command Dashboard</title>
+  <meta name="description" content="Tactical real-time police emergency dispatch and citizen alert dashboard connected with Supabase.">
+  
+  <!-- Modern Tactical Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS for Tactical Live Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Core Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="theme-tactical">
+  <!-- Audio Alarm Element -->
+  <div id="audio-indicator" class="audio-banner" style="display: none;">
+    <span class="audio-pulse"></span>
+    <span id="audio-banner-text">EMERGENCY SOS BROADCAST RECEIVED</span>
+    <button id="dismiss-audio-btn" class="btn-micro">MUTE ALARM</button>
+  </div>
+
+  <!-- AUTHENTICATION / LOGIN OVERLAY -->
+  <div id="auth-modal" class="auth-overlay">
+    <div class="auth-card glassmorphism">
+      <div class="auth-brand">
+        <div class="brand-shield">
+          <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+            <path d="M9 12l2 2 4-4"/>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <h1>SMART POLICE 3</h1>
+          <p class="brand-subtitle">EMERGENCY DISPATCH & RADAR COMMAND</p>
+        </div>
+      </div>
+
+      <div class="auth-tabs">
+        <button id="tab-admin" class="tab-btn active" onclick="switchLoginRole('admin')">ADMIN COMMAND</button>
+        <button id="tab-police" class="tab-btn" onclick="switchLoginRole('police')">PATROL OFFICER</button>
+      </div>
+
+      <form id="login-form" class="auth-form" onsubmit="handleLoginSubmit(event)">
+        <div class="form-group">
+          <label for="login-email">OPERATOR / BADGE ID OR EMAIL</label>
+          <div class="input-wrapper">
+            <input type="text" id="login-email" required placeholder="admin@smartpolice.gov" value="admin@smartpolice.gov">
+            <span class="input-badge" id="role-badge-tag">ADMIN</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="login-password">SECURE ACCESS PIN / PASSWORD</label>
+          <input type="password" id="login-password" required placeholder="••••••••" value="admin123">
+        </div>
+
+        <div class="quick-credentials">
+          <p class="quick-label">⚡ ONE-CLICK DEMO ACCESS</p>
+          <div class="quick-chips">
+            <button type="button" class="chip active-chip" onclick="applyDemoCredentials('admin')">Admin Chief</button>
+            <button type="button" class="chip" onclick="applyDemoCredentials('police')">Officer Shane</button>
+            <button type="button" class="chip" onclick="applyDemoCredentials('dispatch')">HQ Dispatcher</button>
+          </div>
+        </div>
+
+        <div id="login-error-msg" class="error-banner" style="display: none;"></div>
+
+        <button type="submit" id="btn-login-submit" class="btn-primary btn-block">
+          <span class="btn-text">AUTHENTICATE & ENTER COMMAND CENTER</span>
+          <span class="btn-glare"></span>
+        </button>
+
+        <div class="auth-footer">
+          <span>SECURE END-TO-END ENCRYPTED // SUPABASE REALTIME V2</span>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MAIN APP CONTAINER -->
+  <div id="app-container" class="app-layout" style="display: none;">
+    
+    <!-- TOP NAVIGATION & COMMAND BAR -->
+    <header class="top-navbar glassmorphism">
+      <div class="nav-left">
+        <div class="tactical-logo">
+          <span class="status-pulse-dot"></span>
+          <span class="logo-title">SMARTPOLICE</span>
+          <span class="logo-version">v3.4 DISPATCH</span>
+        </div>
+        
+        <div class="connection-status" id="supabase-status-pill">
+          <span class="status-indicator-green" id="conn-dot"></span>
+          <span id="conn-text">SUPABASE REALTIME: CONNECTED</span>
+        </div>
+      </div>
+
+      <div class="nav-center">
+        <!-- Live Alert Flash Marquee -->
+        <div class="live-ticker" id="live-ticker-container">
+          <span class="ticker-label">DEFCON RADAR:</span>
+          <span class="ticker-text" id="ticker-text">SYSTEM ARMED & MONITORING CITIZEN APP ALERTS</span>
+        </div>
+      </div>
+
+      <div class="nav-right">
+        <!-- Audio Alarm Toggle -->
+        <button id="siren-toggle-btn" class="btn-icon" title="Toggle Emergency Siren Sound" onclick="toggleAudioAlarm()">
+          <span id="siren-icon">🔔</span>
+          <span id="siren-label">SIREN ON</span>
+        </button>
+
+        <!-- Test Alert Trigger -->
+        <button id="btn-simulate-alert" class="btn-accent" onclick="openSimulateModal()">
+          <span class="pulse-ring"></span>
+          + SIMULATE APP ALERT
+        </button>
+
+        <!-- User Profile Tag -->
+        <div class="user-badge" id="current-user-tag">
+          <div class="user-avatar" id="user-avatar-initials">AD</div>
+          <div class="user-meta">
+            <span class="user-name" id="user-display-name">Alex Morgan</span>
+            <span class="user-role-pill" id="user-role-badge">COMMAND ADMIN</span>
+          </div>
+          <button class="btn-logout" title="Sign Out" onclick="handleLogout()">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+              <polyline points="16 17 21 12 16 7"></polyline>
+              <line x1="21" y1="12" x2="9" y2="12"></line>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- METRIC STATS STRIP -->
+    <section class="stats-strip">
+      <div class="stat-card stat-critical">
+        <div class="stat-icon">🚨</div>
+        <div class="stat-details">
+          <span class="stat-count" id="count-critical">0</span>
+          <span class="stat-label">CRITICAL SOS</span>
+        </div>
+        <div class="stat-glow"></div>
+      </div>
+
+      <div class="stat-card stat-high">
+        <div class="stat-icon">⚡</div>
+        <div class="stat-details">
+          <span class="stat-count" id="count-active">0</span>
+          <span class="stat-label">ACTIVE / DISPATCHED</span>
+        </div>
+      </div>
+
+      <div class="stat-card stat-resolved">
+        <div class="stat-icon">🛡️</div>
+        <div class="stat-details">
+          <span class="stat-count" id="count-resolved">0</span>
+          <span class="stat-label">RESOLVED TODAY</span>
+        </div>
+      </div>
+
+      <div class="stat-card stat-total">
+        <div class="stat-icon">📊</div>
+        <div class="stat-details">
+          <span class="stat-count" id="count-total">0</span>
+          <span class="stat-label">TOTAL INCIDENTS</span>
+        </div>
+      </div>
+
+      <div class="stat-card stat-admin-actions" id="admin-actions-box">
+        <div class="admin-quick-links">
+          <button class="btn-secondary btn-sm" onclick="showView('alerts-view')">COMMAND RADAR</button>
+          <button class="btn-secondary btn-sm" onclick="showView('officers-view')">PATROL UNITS</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="dashboard-body">
+
+      <!-- VIEW 1: RADAR & ALERTS COMMAND -->
+      <div id="alerts-view" class="view-panel active-panel">
+        <div class="grid-layout">
+          
+          <!-- LEFT: LIVE ALERTS FEED -->
+          <div class="alerts-feed-column">
+            <div class="panel-header glassmorphism">
+              <div class="panel-title-group">
+                <h2>LIVE INCIDENT STREAM</h2>
+                <span class="badge-live">REALTIME SYNC</span>
+              </div>
+
+              <!-- Filter Bar -->
+              <div class="filters-row">
+                <input type="text" id="alert-search-input" placeholder="Search caller, type, street..." oninput="handleSearchFilter(event)">
+                <select id="filter-status-select" onchange="handleStatusFilter(event)">
+                  <option value="ALL">All Statuses</option>
+                  <option value="RECEIVED">Received</option>
+                  <option value="DISPATCHED">Dispatched</option>
+                  <option value="ON_SCENE">On Scene</option>
+                  <option value="RESOLVED">Resolved</option>
+                </select>
+                <select id="filter-severity-select" onchange="handleSeverityFilter(event)">
+                  <option value="ALL">All Severities</option>
+                  <option value="CRITICAL">Critical</option>
+                  <option value="HIGH">High</option>
+                  <option value="MEDIUM">Medium</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Scrollable Alerts List -->
+            <div id="alerts-list-container" class="alerts-list">
+              <div class="loading-state">
+                <div class="spinner"></div>
+                <p>CONNECTING TO SUPABASE REALTIME STREAM...</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: TACTICAL INTERACTIVE MAP & INCIDENT FOCUS -->
+          <div class="tactical-map-column">
+            <div class="map-controls-bar glassmorphism">
+              <div class="map-title-bar">
+                <span class="radar-dot"></span>
+                <span class="map-heading">METRO TACTICAL GPS RADAR</span>
+                <span class="active-coords" id="selected-coords-pill">COORDS: 37.7749° N, 122.4194° W</span>
+              </div>
+              <div class="map-btn-group">
+                <button class="btn-micro" onclick="resetMapView()">CENTER CITY</button>
+                <button class="btn-micro" onclick="toggleHeatmapLayer()">RADAR SWEEP</button>
+              </div>
+            </div>
+
+            <!-- Leaflet Map Container -->
+            <div id="tactical-map" class="map-canvas"></div>
+
+            <!-- Active Incident Quick Dispatch Footer HUD -->
+            <div id="selected-incident-hud" class="incident-hud glassmorphism" style="display: none;">
+              <div class="hud-header">
+                <div class="hud-type-badge" id="hud-type">ASSAULT - CRITICAL</div>
+                <div class="hud-time" id="hud-time">10:45 PM</div>
+              </div>
+              <div class="hud-details">
+                <h3 id="hud-place">742 Evergreen Terrace, Downtown</h3>
+                <p id="hud-note">Armed suspect spotted near ATM lobby, suspect wearing dark hoodie</p>
+                <div class="hud-meta">
+                  <span>Caller: <strong id="hud-caller">Sarah Jenkins</strong></span>
+                  <span>Contact: <strong id="hud-phone">+1 555-234-5678</strong></span>
+                  <span>Status: <strong id="hud-status" class="status-tag">RECEIVED</strong></span>
+                </div>
+              </div>
+              <div class="hud-actions" id="hud-actions-container">
+                <!-- Status Dispatch Buttons injected dynamically -->
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- VIEW 2: ACTIVE PATROL OFFICERS -->
+      <div id="officers-view" class="view-panel" style="display: none;">
+        <div class="subview-container glassmorphism">
+          <div class="subview-header">
+            <div>
+              <h2>ON-DUTY PATROL UNITS & DISPATCH ROSTER</h2>
+              <p>Active squad cars, motorcycle units, and tactical emergency responders.</p>
+            </div>
+            <button class="btn-primary" onclick="showView('alerts-view')">BACK TO RADAR</button>
+          </div>
+
+          <div class="officers-grid" id="officers-list-container">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+  </div>
+
+  <!-- SIMULATE APP ALERT MODAL (FOR TESTING REALTIME FLOW) -->
+  <div id="simulate-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-card glassmorphism">
+      <div class="modal-header">
+        <h3>⚡ SIMULATE INCOMING CITIZEN APP ALERT</h3>
+        <button class="modal-close" onclick="closeSimulateModal()">&times;</button>
+      </div>
+      <p class="modal-subtitle">Sends an instant HTTP POST to your Supabase <code>alerts</code> table to test Realtime dispatch broadcast.</p>
+
+      <form id="simulate-alert-form" onsubmit="handleSimulateAlertSubmit(event)">
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>INCIDENT TYPE</label>
+            <select id="sim-type">
+              <option value="ASSAULT">Assault / Physical Attack (CRITICAL)</option>
+              <option value="THEFT">Burglary / Vehicle Theft (HIGH)</option>
+              <option value="SOS">Rapid Panic SOS Button (CRITICAL)</option>
+              <option value="FIRE">Building / Vehicle Fire (HIGH)</option>
+              <option value="ACCIDENT">Traffic Collision / Crash (HIGH)</option>
+              <option value="SUSPICIOUS">Suspicious Trespassing (MEDIUM)</option>
+            </select>
+          </div>
+          <div class="form-group flex-1">
+            <label>SEVERITY LEVEL</label>
+            <select id="sim-severity">
+              <option value="CRITICAL">CRITICAL (Red Alarm)</option>
+              <option value="HIGH">HIGH (Amber Alert)</option>
+              <option value="MEDIUM">MEDIUM (Cyan Radar)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>INCIDENT ADDRESS / LOCATION</label>
+          <input type="text" id="sim-place" required value="742 Evergreen Terrace, Sector 4 Downtown">
+        </div>
+
+        <div class="form-group">
+          <label>INCIDENT NOTE / DETAILS</label>
+          <textarea id="sim-note" rows="2" placeholder="Suspicious armed individuals seen...">Citizen triggered emergency SOS via mobile app. Immediate dispatch requested.</textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>CITIZEN NAME</label>
+            <input type="text" id="sim-caller" value="Sarah Jenkins">
+          </div>
+          <div class="form-group flex-1">
+            <label>PHONE NUMBER</label>
+            <input type="text" id="sim-phone" value="+1 (555) 019-2831">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label>GPS LATITUDE</label>
+            <input type="number" step="0.0001" id="sim-lat" value="37.7749">
+          </div>
+          <div class="form-group flex-1">
+            <label>GPS LONGITUDE</label>
+            <input type="number" step="0.0001" id="sim-lng" value="-122.4194">
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button type="button" class="btn-secondary" onclick="closeSimulateModal()">CANCEL</button>
+          <button type="submit" id="btn-submit-sim" class="btn-primary">
+            TRANSMIT TEST ALERT TO SUPABASE
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Supabase JS Client v2 from Official CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Main Application Logic -->
+  <script src="app.js"></script>
+</body>
+</html>
